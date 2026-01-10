@@ -4,6 +4,7 @@ Redis cache service for AI processing results.
 
 import redis
 import json
+import ssl
 from typing import Optional, Any
 from app.config import settings
 
@@ -14,14 +15,27 @@ class CacheService:
     def __init__(self):
         """Initialize Redis client with connection from settings."""
         try:
+            # Add SSL support for rediss:// URLs
+            connection_kwargs = {
+                'decode_responses': True
+            }
+
+            # If using SSL (rediss://), configure SSL certificate handling
+            if settings.REDIS_URL and settings.REDIS_URL.startswith('rediss://'):
+                connection_kwargs['ssl_cert_reqs'] = ssl.CERT_NONE
+
             self.redis_client = redis.from_url(
                 settings.REDIS_URL,
-                decode_responses=True
+                **connection_kwargs
             )
             # Test connection
             self.redis_client.ping()
+            print("✅ Redis cache connected successfully")
         except redis.ConnectionError as e:
             print(f"Warning: Redis connection failed: {e}")
+            self.redis_client = None
+        except Exception as e:
+            print(f"Warning: Redis initialization error: {e}")
             self.redis_client = None
 
     def get(self, key: str) -> Optional[Any]:
