@@ -1,0 +1,77 @@
+# Core FastAPI dependencies
+fastapi==0.115.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.12.1
+psycopg2-binary==2.9.9
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+python-multipart==0.0.6
+
+# Redis
+redis==5.0.1
+
+# Utilities
+python-dotenv==1.0.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx>=0.27.0,<0.28.0
+
+# Phase 4: Analytics & Automation
+
+# Web Scraping
+playwright==1.40.0
+beautifulsoup4==4.12.2
+lxml==4.9.3
+
+# Task Queue & Scheduling
+celery==5.3.4
+flower==2.0.1
+
+# Enhanced Validation
+pydantic-extra-types==2.1.0
+python-dateutil==2.8.2
+
+# Deduplication & Fuzzy Matching
+python-Levenshtein==0.23.0
+jellyfish==1.0.3
+
+# Email Notifications
+sendgrid==6.10.0
+
+# Analytics
+pandas==2.2.0
+numpy==1.26.2
+
+# Monitoring & Observability
+prometheus-client==0.19.0
+sentry-sdk==1.38.0
+
+# WebSocket Support
+python-socketio==5.10.0
+websockets==12.0
+
+# File Storage (S3/MinIO)
+boto3==1.29.7
+minio==7.2.0
+
+# Phase 2: AI Processing
+openai==1.3.0
+PyPDF2==3.0.1
+python-docx==1.1.0
+pgvector>=0.2.0
+
+# Recommendation System - BGE-M3 (Free, Multilingual)
+sentence-transformers==3.3.1
+# Note: torch will be installed as dependency of sentence-transformers
+# It will automatically use CPU-only version on systems without CUDA

@@ -1,0 +1,11 @@
+URL,Date,Title,Company,Predicted_Category,Description
+https://example.com/tender1,2024-01-15,Construction of Office Building,ABC Construction Ltd,Construction & Infrastructure,"Build a 5-story office building in Addis Ababa with modern facilities."
+https://example.com/tender2,15/01/2024,IT Equipment Supply,Tech Solutions PLC,IT & Technology,Supply of 100 computers and networking equipment
+https://example.com/tender3,Jan 15 2024,Medical Equipment Procurement,Health Services Inc,Healthcare & Medical,"Procurement of medical diagnostic equipment including X-ray machines, ultrasound devices."
+https://example.com/tender4,2024-01-16,Road Maintenance Services,Road Corp,Construction & Infrastructure,Annual road maintenance contract for federal highways
+https://example.com/tender5,16-01-2024,Software Development Project,Digital Innovations,IT & Technology,Custom ERP system development for government ministry
+https://example.com/tender1,2024-01-17,Duplicate Tender (Same URL),Duplicate Co,Construction & Infrastructure,This should be skipped as duplicate
+https://example.com/tender6,invalid-date,Invalid Date Tender,Some Company,Other,This tender has an invalid date format
+https://example.com/tender7,2024-01-18,Empty Description Test,Empty Inc,Services,
+https://example.com/tender8,2024-01-19,,Missing Title Corp,Education & Training,This has no title but has description
+https://example.com/tender9,2024-01-20,Complete Tender,Complete Ltd,Agriculture & Food,Complete tender with all required fields properly filled

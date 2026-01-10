@@ -1,0 +1,173 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: tenderlens_postgres
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tenderlens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tenderlens123}
+      POSTGRES_DB: ${POSTGRES_DB:-tenderlens}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tenderlens"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: tenderlens_redis
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: tenderlens-backend:latest 
+    container_name: tenderlens_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    volumes:
+      - ./backend:/app
+      - /home/tewodros-cheru/.cache/huggingface:/root/.cache/huggingface
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tenderlens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tenderlens123}
+      POSTGRES_DB: ${POSTGRES_DB:-tenderlens}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      ACCESS_TOKEN_EXPIRE_MINUTES: 15
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY}
+      AI_OPENAI_MODEL: ${AI_OPENAI_MODEL}
+      AI_ENABLED: ${AI_ENABLED:-true}
+      # Embedding Options
+      HF_HUB_OFFLINE: ${HF_HUB_OFFLINE:-0}
+      TRANSFORMERS_OFFLINE: ${TRANSFORMERS_OFFLINE:-0}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}  # 'local' or 'openai'
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: tenderlens_frontend
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+      NODE_ENV: development
+    depends_on:
+      - backend
+
+  celery_worker:
+    image: tenderlens-backend:latest  # Reuse the same image - no rebuild!
+    container_name: tenderlens_celery_worker
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2 -Q celery,ai_processing,batch_processing,embeddings,batch_embeddings,maintenance
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    volumes:
+      - ./backend:/app
+      - /home/tewodros-cheru/.cache/huggingface:/root/.cache/huggingface
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tenderlens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tenderlens123}
+      POSTGRES_DB: ${POSTGRES_DB:-tenderlens}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY}
+      AI_OPENAI_MODEL: ${AI_OPENAI_MODEL}
+      AI_ENABLED: ${AI_ENABLED:-true}
+      # Embedding Options
+      HF_HUB_OFFLINE: ${HF_HUB_OFFLINE:-0}
+      TRANSFORMERS_OFFLINE: ${TRANSFORMERS_OFFLINE:-0}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+    depends_on:
+      - postgres
+      - redis
+      - backend
+
+  flower:
+    image: tenderlens-backend:latest  # Reuse the same image - no rebuild!
+    container_name: tenderlens_flower
+    command: celery -A app.workers.celery_app flower --port=5555
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    ports:
+      - "5555:5555"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tenderlens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tenderlens123}
+      POSTGRES_DB: ${POSTGRES_DB:-tenderlens}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY}
+      AI_ENABLED: ${AI_ENABLED:-true}
+    depends_on:
+      - redis
+      - celery_worker
+
+volumes:
+  postgres_data:
+  redis_data:
