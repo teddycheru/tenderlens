@@ -1,26 +1,10 @@
-databases:
-  - name: tenderlens-db
-    databaseName: tenderlens
-    user: tenderlens
-    plan: starter
-    region: oregon
-    ipAllowList: []
-
 services:
-  # Redis Instance
-  - type: redis
-    name: tenderlens-redis
-    plan: starter
-    region: oregon
-    maxmemoryPolicy: noeviction
-    ipAllowList: []
-
   # Backend API Web Service
   - type: web
     name: tenderlens-backend
     env: docker
     region: oregon
-    plan: starter
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /health
@@ -30,27 +14,13 @@ services:
       - key: POSTGRES_PASSWORD
         sync: false
       - key: POSTGRES_DB
-        fromDatabase:
-          name: tenderlens-db
-          property: database
+        sync: false
       - key: POSTGRES_HOST
-        fromDatabase:
-          name: tenderlens-db
-          property: host
+        sync: false
       - key: POSTGRES_PORT
-        fromDatabase:
-          name: tenderlens-db
-          property: port
-      - key: REDIS_HOST
-        fromService:
-          name: tenderlens-redis
-          type: redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          name: tenderlens-redis
-          type: redis
-          property: port
+        sync: false
+      - key: REDIS_URL
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: AI_OPENAI_API_KEY
@@ -76,17 +46,11 @@ services:
       - key: API_V1_STR
         value: /api/v1
       - key: BACKEND_CORS_ORIGINS
-        value: '["https://tenderlens.vercel.app"]'
+        value: '["https://tenderlens.vercel.app","https://tenderlens-n7zr40jor-tewodros-cherus-projects.vercel.app","http://localhost:3000","http://localhost:5173"]'
       - key: CELERY_BROKER_URL
-        fromService:
-          name: tenderlens-redis
-          type: redis
-          property: connectionString
+        sync: false
       - key: CELERY_RESULT_BACKEND
-        fromService:
-          name: tenderlens-redis
-          type: redis
-          property: connectionString
+        sync: false
       - key: AI_OPENAI_MAX_TOKENS
         value: 500
       - key: AI_OPENAI_TEMPERATURE
@@ -112,12 +76,12 @@ services:
       - key: TRANSFORMERS_OFFLINE
         value: 0
 
-  # Celery Worker as Web Service (workaround for Starter plan)
+  # Celery Worker as Web Service (Free tier)
   - type: web
     name: tenderlens-celery-worker
     env: docker
     region: oregon
-    plan: starter
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     dockerCommand: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2 -Q celery,ai_processing,batch_processing,embeddings,batch_embeddings,maintenance
@@ -127,27 +91,13 @@ services:
       - key: POSTGRES_PASSWORD
         sync: false
       - key: POSTGRES_DB
-        fromDatabase:
-          name: tenderlens-db
-          property: database
+        sync: false
       - key: POSTGRES_HOST
-        fromDatabase:
-          name: tenderlens-db
-          property: host
+        sync: false
       - key: POSTGRES_PORT
-        fromDatabase:
-          name: tenderlens-db
-          property: port
-      - key: REDIS_HOST
-        fromService:
-          name: tenderlens-redis
-          type: redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          name: tenderlens-redis
-          type: redis
-          property: port
+        sync: false
+      - key: REDIS_URL
+        sync: false
       - key: AI_OPENAI_API_KEY
         sync: false
       - key: AI_ENABLED
@@ -161,15 +111,9 @@ services:
       - key: API_V1_STR
         value: /api/v1
       - key: CELERY_BROKER_URL
-        fromService:
-          name: tenderlens-redis
-          type: redis
-          property: connectionString
+        sync: false
       - key: CELERY_RESULT_BACKEND
-        fromService:
-          name: tenderlens-redis
-          type: redis
-          property: connectionString
+        sync: false
       - key: AI_OPENAI_MAX_TOKENS
         value: 500
       - key: AI_OPENAI_TEMPERATURE
@@ -202,28 +146,14 @@ services:
     name: tenderlens-flower
     env: docker
     region: oregon
-    plan: starter
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     dockerCommand: celery -A app.workers.celery_app flower --port=$PORT
     envVars:
-      - key: REDIS_HOST
-        fromService:
-          name: tenderlens-redis
-          type: redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          name: tenderlens-redis
-          type: redis
-          property: port
+      - key: REDIS_URL
+        sync: false
       - key: CELERY_BROKER_URL
-        fromService:
-          name: tenderlens-redis
-          type: redis
-          property: connectionString
+        sync: false
       - key: CELERY_RESULT_BACKEND
-        fromService:
-          name: tenderlens-redis
-          type: redis
-          property: connectionString
+        sync: false
