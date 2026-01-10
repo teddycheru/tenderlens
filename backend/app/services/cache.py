@@ -15,20 +15,23 @@ class CacheService:
     def __init__(self):
         """Initialize Redis client with connection from settings."""
         try:
-            # Configure connection parameters
             redis_url = settings.REDIS_URL
 
-            # Add SSL support for rediss:// URLs (Upstash, etc.)
+            # For SSL connections (rediss://), pass SSL parameters directly
             if redis_url and redis_url.startswith('rediss://'):
-                # Add SSL certificate parameter to URL if not present
-                if 'ssl_cert_reqs' not in redis_url:
-                    separator = '&' if '?' in redis_url else '?'
-                    redis_url = f"{redis_url}{separator}ssl_cert_reqs=none"
+                self.redis_client = redis.from_url(
+                    redis_url,
+                    decode_responses=True,
+                    ssl_cert_reqs=ssl.CERT_NONE,
+                    ssl_check_hostname=False
+                )
+            else:
+                # Non-SSL connection
+                self.redis_client = redis.from_url(
+                    redis_url,
+                    decode_responses=True
+                )
 
-            self.redis_client = redis.from_url(
-                redis_url,
-                decode_responses=True
-            )
             # Test connection
             self.redis_client.ping()
             print("✅ Redis cache connected successfully")
