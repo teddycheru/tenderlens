@@ -13,7 +13,8 @@ def get_redis_url_with_ssl_params(url: str) -> str:
         # Add SSL certificate requirement parameter if using SSL
         if 'ssl_cert_reqs' not in url:
             separator = '&' if '?' in url else '?'
-            url = f"{url}{separator}ssl_cert_reqs={ssl.CERT_NONE}"
+            # Use string "none", not ssl.CERT_NONE (which is integer 0)
+            url = f"{url}{separator}ssl_cert_reqs=none"
     return url
 
 
