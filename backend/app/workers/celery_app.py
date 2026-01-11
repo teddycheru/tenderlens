@@ -4,7 +4,6 @@ Celery application configuration for async task processing.
 
 from celery import Celery
 from app.config import settings
-import ssl
 
 
 def get_redis_url_with_ssl_params(url: str) -> str:
