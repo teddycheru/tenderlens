@@ -16,30 +16,55 @@ class CacheService:
         """Initialize Redis client with connection from settings."""
         try:
             redis_url = settings.REDIS_URL
+            print(f"🔍 [Redis Debug] Starting Redis connection...")
+            print(f"🔍 [Redis Debug] REDIS_URL exists: {bool(redis_url)}")
+
+            if redis_url:
+                # Show first 30 chars for debugging (hide password)
+                url_preview = redis_url[:30] + "..." if len(redis_url) > 30 else redis_url
+                print(f"🔍 [Redis Debug] URL preview: {url_preview}")
+                print(f"🔍 [Redis Debug] Is SSL (rediss://): {redis_url.startswith('rediss://')}")
 
             # For SSL connections (rediss://), pass SSL parameters directly
             if redis_url and redis_url.startswith('rediss://'):
+                print(f"🔍 [Redis Debug] Using SSL connection with CERT_NONE")
+                print(f"🔍 [Redis Debug] ssl_cert_reqs value: {ssl.CERT_NONE}")
+                print(f"🔍 [Redis Debug] Creating redis client...")
+
                 self.redis_client = redis.from_url(
                     redis_url,
                     decode_responses=True,
                     ssl_cert_reqs=ssl.CERT_NONE,
                     ssl_check_hostname=False
                 )
+                print(f"🔍 [Redis Debug] Client created successfully")
             else:
                 # Non-SSL connection
+                print(f"🔍 [Redis Debug] Using non-SSL connection")
                 self.redis_client = redis.from_url(
                     redis_url,
                     decode_responses=True
                 )
+                print(f"🔍 [Redis Debug] Client created successfully")
 
             # Test connection
-            self.redis_client.ping()
+            print(f"🔍 [Redis Debug] Attempting PING...")
+            result = self.redis_client.ping()
+            print(f"🔍 [Redis Debug] PING result: {result}")
             print("✅ Redis cache connected successfully")
+
         except redis.ConnectionError as e:
-            print(f"Warning: Redis connection failed: {e}")
+            print(f"❌ [Redis Debug] ConnectionError details:")
+            print(f"   - Error type: {type(e).__name__}")
+            print(f"   - Error message: {e}")
+            print(f"   - Error args: {e.args if hasattr(e, 'args') else 'N/A'}")
             self.redis_client = None
         except Exception as e:
-            print(f"Warning: Redis initialization error: {e}")
+            print(f"❌ [Redis Debug] Unexpected error:")
+            print(f"   - Error type: {type(e).__name__}")
+            print(f"   - Error message: {e}")
+            import traceback
+            print(f"   - Traceback: {traceback.format_exc()}")
             self.redis_client = None
 
     def get(self, key: str) -> Optional[Any]:
