@@ -91,7 +91,7 @@ class Tender(Base):
 
     # Recommendation System Fields
     recommendation_status = Column(String(20), default='active', nullable=True, index=True)  # 'active', 'expired', 'expired_saved', 'historical'
-    content_embedding = Column(Vector(1024), nullable=True)  # 1024 for BGE-M3
+    content_embedding = Column(Vector(384), nullable=True)  # 1024 for BGE-M3
     embedding_updated_at = Column(DateTime(timezone=True), nullable=True)  # Last embedding update timestamp
 
     # Timestamps

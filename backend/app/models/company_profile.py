@@ -83,7 +83,7 @@ class CompanyTenderProfile(Base):
     )  # Customizable scoring weights
 
     # Vector Embeddings (for semantic similarity)
-    profile_embedding = Column(Vector(1024))  # Generated from keywords + sectors
+    profile_embedding = Column(Vector(384))  # Generated from keywords + sectors
     embedding_updated_at = Column(DateTime(timezone=True))
 
     # Metadata
