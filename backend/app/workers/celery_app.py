@@ -10,12 +10,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Get Redis URL - prefer CELERY_BROKER_URL if set, fallback to REDIS_URL
-redis_url = (
-    settings.CELERY_BROKER_URL
-    or settings.REDIS_URL
-    or os.getenv("REDIS_URL")
-)
+# Get Redis URL
+redis_url = os.getenv("REDIS_URL")
 
 if not redis_url:
     logger.warning("No REDIS_URL found in environment or settings! Celery may fail to connect.")
