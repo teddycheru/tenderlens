@@ -26,8 +26,9 @@ class EmbeddingService:
     - High quality semantic embeddings
     """
 
-    MODEL_NAME = "BAAI/bge-m3"
-    EMBEDDING_DIMENSIONS = 1024
+    # MODEL_NAME = "BAAI/bge-m3"
+    MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2" # Smaller model for testing/demo
+    EMBEDDING_DIMENSIONS = 384  # 1024 for BGE-M3, 384 for MiniLM-L6-v2
 
     _model: Optional[SentenceTransformer] = None
 
