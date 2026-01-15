@@ -16,7 +16,7 @@ retry_interval = 2
 
 for i in range(max_retries):
     try:
-        engine = create_engine(settings.DATABASE_URL)
+        engine = create_engine(settings.get_db_url())
         engine.connect()
         print('Database is ready!')
         sys.exit(0)

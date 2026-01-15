@@ -16,7 +16,7 @@ retry_interval = 2
 
 for i in range(max_retries):
     try:
-        engine = create_engine(settings.DATABASE_URL)
+        engine = create_engine(settings.get_db_url())
         engine.connect()
         print('Database is ready!')
         sys.exit(0)
@@ -37,7 +37,7 @@ DB_HAS_ALEMBIC=$(python -c "
 from sqlalchemy import create_engine, inspect
 from app.config import settings
 try:
-    engine = create_engine(settings.DATABASE_URL)
+    engine = create_engine(settings.get_db_url())
     inspector = inspect(engine)
     print('yes' if 'alembic_version' in inspector.get_table_names() else 'no')
 except Exception:

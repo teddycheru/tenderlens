@@ -14,7 +14,7 @@ from app.config import settings
 # pool_size: 20 connections in the pool
 # max_overflow: 20 additional connections when needed (up to 40 total)
 engine = create_engine(
-    settings.DATABASE_URL,
+    settings.get_db_url(),
     poolclass=QueuePool,
     pool_size=20,
     max_overflow=20,

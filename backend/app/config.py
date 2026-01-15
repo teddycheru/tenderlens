@@ -4,8 +4,9 @@ Application configuration management using Pydantic Settings.
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
-from typing import List, Union
+from typing import List, Union, Optional
 import json
+import os
 
 
 class Settings(BaseSettings):
@@ -18,16 +19,30 @@ class Settings(BaseSettings):
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
 
-    # Database
+    # Database - can be set directly via DATABASE_URL env var or constructed from components
+    DATABASE_URL: Optional[str] = None  # Read directly from environment if set
+
+    # Database components (used only if DATABASE_URL is not set)
     POSTGRES_USER: str = "tenderlens"
     POSTGRES_PASSWORD: str = "tenderlens123"
     POSTGRES_DB: str = "tenderlens"
     POSTGRES_HOST: str = "postgres"
     POSTGRES_PORT: int = 5432
 
-    @property
-    def DATABASE_URL(self) -> str:
-        """Construct PostgreSQL database URL."""
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def get_database_url(cls, v: Optional[str]) -> Optional[str]:
+        """Get DATABASE_URL from environment or return None to use components."""
+        # Check environment directly first (Pydantic sometimes doesn't see it)
+        env_url = os.environ.get("DATABASE_URL")
+        if env_url:
+            return env_url
+        return v
+
+    def get_db_url(self) -> str:
+        """Get the database URL, either from env var or constructed from components."""
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
         return (
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"

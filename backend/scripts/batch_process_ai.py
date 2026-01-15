@@ -48,7 +48,7 @@ class BatchAIProcessor:
 
     def __init__(self):
         """Initialize database session."""
-        engine = create_engine(settings.DATABASE_URL)
+        engine = create_engine(settings.get_db_url())
         self.Session = sessionmaker(bind=engine)
         self.db = self.Session()
 
