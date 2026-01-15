@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { tenderApi } from '@/lib/tenders';
 import type { Tender, TenderFilters, TenderListResponse } from '@/types/tender';
 
@@ -9,6 +9,15 @@ export function useTenders(filters?: TenderFilters) {
   const [data, setData] = useState<TenderListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Stringify filters for stable dependency comparison
+  const filtersKey = useMemo(() => JSON.stringify(filters || {}), [
+    filters?.search,
+    filters?.category,
+    filters?.region,
+    filters?.skip,
+    filters?.limit,
+  ]);
 
   const fetchTenders = useCallback(async () => {
     try {
@@ -22,7 +31,8 @@ export function useTenders(filters?: TenderFilters) {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersKey]);
 
   useEffect(() => {
     fetchTenders();
