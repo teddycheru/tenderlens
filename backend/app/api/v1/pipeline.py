@@ -10,8 +10,10 @@ from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.models.scrape_log import ScrapeLog
+from app.models.tender import Tender
 from app.models.tender_staging import TenderStaging
 from app.services.data_quality.metrics import data_quality_metrics
+from app.workers.embedding_tasks import batch_generate_embeddings_task, generate_tender_embedding_task
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
@@ -134,3 +136,73 @@ def get_validation_errors(
     """
     summary = data_quality_metrics.get_validation_error_summary(db, days)
     return summary
+
+
+@router.post("/generate-tender-embeddings", response_model=Dict)
+def trigger_tender_embeddings(
+    db: Session = Depends(get_db)
+):
+    """
+    Trigger batch embedding generation for all tenders without embeddings.
+
+    This is needed for recommendations to work. Each tender needs a
+    content_embedding for vector similarity search.
+
+    Returns:
+        Status of the batch job
+    """
+    # Count tenders without embeddings
+    tenders_without_embedding = db.query(Tender).filter(
+        Tender.content_embedding.is_(None)
+    ).all()
+
+    total = len(tenders_without_embedding)
+
+    if total == 0:
+        return {
+            "status": "complete",
+            "message": "All tenders already have embeddings",
+            "total_tenders": 0
+        }
+
+    # Queue tasks for each tender
+    task_ids = []
+    for tender in tenders_without_embedding:
+        task = generate_tender_embedding_task.delay(str(tender.id))
+        task_ids.append(task.id)
+
+    return {
+        "status": "queued",
+        "message": f"Queued {total} tenders for embedding generation",
+        "total_tenders": total,
+        "sample_task_ids": task_ids[:5]
+    }
+
+
+@router.get("/embedding-status", response_model=Dict)
+def get_embedding_status(
+    db: Session = Depends(get_db)
+):
+    """
+    Get status of tender embeddings.
+
+    Returns:
+        Count of tenders with/without embeddings
+    """
+    total = db.query(Tender).count()
+    with_embedding = db.query(Tender).filter(
+        Tender.content_embedding.isnot(None)
+    ).count()
+    without_embedding = total - with_embedding
+
+    active = db.query(Tender).filter(
+        Tender.recommendation_status == 'active'
+    ).count()
+
+    return {
+        "total_tenders": total,
+        "with_embedding": with_embedding,
+        "without_embedding": without_embedding,
+        "active_for_recommendations": active,
+        "ready_for_recommendations": with_embedding > 0 and active > 0
+    }
