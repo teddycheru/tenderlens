@@ -24,6 +24,7 @@ from app.services.tender_service import TenderService
 # from app.services.recommendation.scorer import RecommendationScorer
 from app.models.user import User
 # from app.models.company_profile import CompanyTenderProfile
+from app.workers.embedding_tasks import generate_tender_embedding_task
 
 router = APIRouter()
 
@@ -148,6 +149,13 @@ async def create_tender(
         Created tender data
     """
     tender = TenderService.create_tender(db, tender_data)
+
+    # Trigger async embedding generation for recommendations
+    try:
+        generate_tender_embedding_task.delay(str(tender.id))
+    except Exception as e:
+        print(f"⚠️  Celery task failed (embedding will not be generated): {e}")
+
     return tender
 
 
@@ -176,6 +184,13 @@ async def update_tender(
         HTTPException 404: If tender not found
     """
     tender = TenderService.update_tender(db, tender_id, tender_data)
+
+    # Regenerate embedding if content changed
+    try:
+        generate_tender_embedding_task.delay(str(tender.id))
+    except Exception as e:
+        print(f"⚠️  Celery task failed (embedding will not be regenerated): {e}")
+
     return tender
 
 
