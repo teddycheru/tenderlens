@@ -164,8 +164,8 @@ export default function RecommendationsPage() {
           showFilters={true}
           initialFilters={{
             limit: 20,
-            min_score: 40,
-            days_ahead: 30,
+            min_score: 10,
+            days_ahead: 90,
           }}
         />
       </div>
