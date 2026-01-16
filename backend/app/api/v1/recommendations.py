@@ -19,6 +19,8 @@ from app.services.company_profile_service import CompanyProfileService
 from app.models.user import User
 from app.models.tender import Tender
 from app.models.user_interaction import UserInteraction
+from app.models.company_profile import CompanyTenderProfile
+from datetime import timedelta
 from app.schemas.recommendation import (
     RecommendationResponse,
     TenderRecommendation,
@@ -226,3 +228,128 @@ async def submit_recommendation_feedback(
         "tender_id": tender_id,
         "interaction_type": feedback.interaction_type
     }
+
+
+@router.get("/debug")
+async def debug_recommendations(
+    days_ahead: int = Query(30, ge=1, le=365),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Debug endpoint to understand why recommendations might be empty.
+    Shows profile settings and tender counts for each filter stage.
+    """
+    today = datetime.now(timezone.utc).date()
+    max_deadline = today + timedelta(days=days_ahead)
+
+    # Get profile
+    profile = CompanyProfileService.get_profile_by_company(db, current_user.company_id)
+
+    if not profile:
+        return {"error": "No profile found"}
+
+    # Count tenders at each filter stage
+    total_tenders = db.query(Tender).count()
+
+    with_embedding = db.query(Tender).filter(
+        Tender.content_embedding.isnot(None)
+    ).count()
+
+    active_status = db.query(Tender).filter(
+        Tender.recommendation_status == 'active'
+    ).count()
+
+    future_deadline = db.query(Tender).filter(
+        Tender.deadline >= today
+    ).count()
+
+    deadline_in_range = db.query(Tender).filter(
+        Tender.deadline >= today,
+        Tender.deadline <= max_deadline
+    ).count()
+
+    # Check sector matching
+    matching_sectors = 0
+    if profile.active_sectors:
+        matching_sectors = db.query(Tender).filter(
+            Tender.category.in_(profile.active_sectors)
+        ).count()
+
+    # Check region matching
+    matching_regions = 0
+    if profile.preferred_regions:
+        matching_regions = db.query(Tender).filter(
+            Tender.region.in_(profile.preferred_regions)
+        ).count()
+
+    # Sample tender deadlines
+    sample_tenders = db.query(Tender).limit(5).all()
+    tender_samples = [
+        {
+            "title": t.title[:50],
+            "category": t.category,
+            "region": t.region,
+            "deadline": str(t.deadline) if t.deadline else None,
+            "recommendation_status": t.recommendation_status,
+            "has_embedding": t.content_embedding is not None
+        }
+        for t in sample_tenders
+    ]
+
+    return {
+        "profile": {
+            "id": str(profile.id),
+            "has_embedding": profile.profile_embedding is not None,
+            "active_sectors": profile.active_sectors,
+            "preferred_regions": profile.preferred_regions,
+            "min_match_threshold": profile.min_match_threshold
+        },
+        "filter_analysis": {
+            "total_tenders": total_tenders,
+            "with_embedding": with_embedding,
+            "active_status": active_status,
+            "future_deadline": future_deadline,
+            "deadline_in_range": deadline_in_range,
+            "matching_sectors": matching_sectors,
+            "matching_regions": matching_regions,
+            "days_ahead": days_ahead,
+            "date_range": f"{today} to {max_deadline}"
+        },
+        "sample_tenders": tender_samples,
+        "diagnosis": _diagnose_empty_recommendations(
+            total_tenders, with_embedding, active_status,
+            future_deadline, deadline_in_range, matching_sectors,
+            matching_regions, profile
+        )
+    }
+
+
+def _diagnose_empty_recommendations(
+    total, with_embedding, active, future, in_range,
+    sectors, regions, profile
+):
+    """Generate diagnosis messages based on filter counts."""
+    issues = []
+
+    if total == 0:
+        issues.append("No tenders in database")
+    if with_embedding == 0:
+        issues.append("No tenders have embeddings - run embedding generation")
+    if active == 0:
+        issues.append("No tenders have recommendation_status='active'")
+    if future == 0:
+        issues.append("All tender deadlines are in the past")
+    if in_range == 0:
+        issues.append(f"No tenders with deadlines in the next {profile.min_match_threshold} days")
+    if profile.active_sectors and sectors == 0:
+        issues.append(f"No tenders match profile sectors: {profile.active_sectors}")
+    if profile.preferred_regions and regions == 0:
+        issues.append(f"No tenders match profile regions: {profile.preferred_regions}")
+    if not profile.profile_embedding:
+        issues.append("Profile has no embedding")
+
+    if not issues:
+        return ["All filters pass - issue might be min_score threshold or vector similarity"]
+
+    return issues

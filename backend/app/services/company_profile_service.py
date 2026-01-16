@@ -9,7 +9,7 @@ from sqlalchemy import func
 from typing import Optional, List, Dict
 from uuid import UUID
 from fastapi import HTTPException, status
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models.company_profile import CompanyTenderProfile
 from app.models.company import Company
@@ -483,5 +483,5 @@ class CompanyProfileService:
             "keywords_count": len(profile.keywords) if profile.keywords else 0,
             "certifications_count": len(profile.certifications) if profile.certifications else 0,
             "has_budget_range": bool(profile.budget_min and profile.budget_max),
-            "days_since_creation": (datetime.utcnow() - profile.created_at).days if profile.created_at else 0,
+            "days_since_creation": (datetime.now(timezone.utc) - profile.created_at).days if profile.created_at else 0,
         }
