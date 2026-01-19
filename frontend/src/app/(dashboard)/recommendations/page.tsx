@@ -161,11 +161,9 @@ export default function RecommendationsPage() {
         <RecommendationList
           viewMode={viewMode}
           variant="detailed"
-          showFilters={true}
+          showFilters={false}
           initialFilters={{
             limit: 20,
-            min_score: 10,
-            days_ahead: 90,
           }}
         />
       </div>

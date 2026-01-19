@@ -76,18 +76,11 @@ class RecommendationService:
             profile.profile_embedding
         )).label('similarity_score')
 
-        # Vector similarity search with filters
+        # Vector similarity search - NO FILTERS, pure similarity
         query = db.query(
             Tender,
             similarity_score
         ).filter(
-            # Only active tenders
-            Tender.recommendation_status == 'active',
-
-            # Deadline must be in future and within the specified days_ahead window
-            Tender.deadline >= today,
-            Tender.deadline <= max_deadline,
-
             # Must have embedding
             Tender.content_embedding.isnot(None),
 
@@ -95,30 +88,16 @@ class RecommendationService:
             ~Tender.id.in_(dismissed_ids) if dismissed_ids else True
         )
 
-        # Apply sector filter (must match at least one active sector)
-        if profile.active_sectors:
-            query = query.filter(
-                Tender.category.in_(profile.active_sectors)
-            )
-
-        # Apply region filter (if specified)
-        if profile.preferred_regions:
-            query = query.filter(
-                Tender.region.in_(profile.preferred_regions)
-            )
-
         # Get more results than needed for filtering, ordered by similarity
         results = query.order_by(similarity_score.desc()).limit(limit * 3).all()
 
-        # Score, filter, and rank
+        # Score and rank (no min_score filter)
         recommendations = []
         for tender, similarity in results:
             score, reasons = RecommendationService.calculate_score_with_reasons(
                 profile, tender, similarity
             )
-
-            if score >= min_score:
-                recommendations.append((tender, score, reasons))
+            recommendations.append((tender, score, reasons))
 
         # Sort by score and limit
         recommendations.sort(key=lambda x: x[1], reverse=True)
