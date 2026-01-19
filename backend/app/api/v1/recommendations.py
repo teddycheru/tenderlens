@@ -363,8 +363,10 @@ async def test_recommendations(
 ):
     """
     Test endpoint: generates profile embedding inline and tests recommendations.
-    Bypasses Celery/Redis for testing.
+    Bypasses Celery/Redis for testing. NO FILTERS - pure vector similarity.
     """
+    from sqlalchemy import func
+
     # Get profile
     profile = CompanyProfileService.get_profile_by_company(db, current_user.company_id)
     if not profile:
@@ -383,25 +385,26 @@ async def test_recommendations(
     else:
         embedding_status = "Already exists"
 
-    # Get recommendations with relaxed filters
+    # DIRECT QUERY - NO FILTERS, just vector similarity
     try:
-        recommendations = recommendation_service.get_recommendations(
-            db=db,
-            profile=profile,
-            limit=10,
-            min_score=0,
-            days_ahead=365
-        )
+        similarity_score = (1 - func.cosine_distance(
+            Tender.content_embedding,
+            profile.profile_embedding
+        )).label('similarity')
+
+        results_raw = db.query(Tender, similarity_score).filter(
+            Tender.content_embedding.isnot(None)
+        ).order_by(similarity_score.desc()).limit(10).all()
 
         results = []
-        for tender, score, reasons in recommendations:
+        for tender, similarity in results_raw:
             results.append({
                 "title": tender.title[:80],
-                "score": round(score, 1),
                 "category": tender.category,
                 "region": tender.region,
                 "deadline": str(tender.deadline) if tender.deadline else None,
-                "similarity": round(reasons.get('similarity', 0), 3)
+                "similarity": round(float(similarity), 4) if similarity else 0,
+                "recommendation_status": tender.recommendation_status
             })
 
         return {
@@ -409,7 +412,8 @@ async def test_recommendations(
             "recommendations_count": len(results),
             "recommendations": results,
             "profile_sectors": profile.active_sectors,
-            "profile_regions": profile.preferred_regions
+            "profile_regions": profile.preferred_regions,
+            "note": "NO FILTERS - pure vector similarity test"
         }
 
     except Exception as e:
