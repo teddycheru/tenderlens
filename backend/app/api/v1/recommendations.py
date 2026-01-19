@@ -29,6 +29,7 @@ from app.schemas.recommendation import (
     SimilarTenderResponse
 )
 from app.workers.embedding_tasks import generate_profile_embedding_task
+from app.services.embedding_service import embedding_service
 
 router = APIRouter(prefix="/recommendations", tags=["Recommendations"])
 
@@ -353,3 +354,64 @@ def _diagnose_empty_recommendations(
         return ["All filters pass - issue might be min_score threshold or vector similarity"]
 
     return issues
+
+
+@router.post("/test")
+async def test_recommendations(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Test endpoint: generates profile embedding inline and tests recommendations.
+    Bypasses Celery/Redis for testing.
+    """
+    # Get profile
+    profile = CompanyProfileService.get_profile_by_company(db, current_user.company_id)
+    if not profile:
+        return {"error": "No profile found", "fix": "Create a company profile first"}
+
+    # Generate embedding inline if missing
+    if profile.profile_embedding is None:
+        try:
+            embedding = embedding_service.generate_profile_embedding(profile)
+            profile.profile_embedding = embedding
+            profile.embedding_updated_at = datetime.now(timezone.utc)
+            db.commit()
+            embedding_status = f"Generated ({len(embedding)} dims)"
+        except Exception as e:
+            return {"error": f"Failed to generate profile embedding: {str(e)}"}
+    else:
+        embedding_status = "Already exists"
+
+    # Get recommendations with relaxed filters
+    try:
+        recommendations = recommendation_service.get_recommendations(
+            db=db,
+            profile=profile,
+            limit=10,
+            min_score=0,
+            days_ahead=365
+        )
+
+        results = []
+        for tender, score, reasons in recommendations:
+            results.append({
+                "title": tender.title[:80],
+                "score": round(score, 1),
+                "category": tender.category,
+                "region": tender.region,
+                "deadline": str(tender.deadline) if tender.deadline else None,
+                "similarity": round(reasons.get('similarity', 0), 3)
+            })
+
+        return {
+            "profile_embedding": embedding_status,
+            "recommendations_count": len(results),
+            "recommendations": results,
+            "profile_sectors": profile.active_sectors,
+            "profile_regions": profile.preferred_regions
+        }
+
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
